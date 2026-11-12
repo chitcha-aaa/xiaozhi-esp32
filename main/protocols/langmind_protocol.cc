@@ -8,8 +8,19 @@
 #include <cJSON.h>
 #include <esp_audio_dec.h>
 #include <esp_log.h>
+#include "audio_service.h"
 #include <esp_opus_dec.h>
 #include <esp_timer.h>
+
+#ifndef OPUS_DEC_CFG
+#define OPUS_DEC_CFG(_sample_rate, _frame_duration_ms)                                     \
+    (esp_opus_dec_cfg_t) {                                                                 \
+        .sample_rate = (uint32_t)(_sample_rate), .channel = ESP_AUDIO_MONO,                \
+        .frame_duration =                                                                  \
+            (esp_opus_dec_frame_duration_t)AS_OPUS_GET_FRAME_DRU_ENUM(_frame_duration_ms), \
+        .self_delimited = false,                                                           \
+    }
+#endif
 
 #include <algorithm>
 #include <cstring>
