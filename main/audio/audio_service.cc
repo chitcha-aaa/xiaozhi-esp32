@@ -628,6 +628,71 @@ bool AudioService::PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> pa
     return true;
 }
 
+bool AudioService::PushPcmToPlaybackQueue(std::vector<int16_t>&& pcm, int sample_rate, bool wait) {
+    if (pcm.empty()) {
+        return true;
+    }
+
+    std::vector<int16_t> output_pcm;
+    if (codec_ != nullptr && sample_rate != codec_->output_sample_rate()) {
+        std::lock_guard<std::mutex> lock(decoder_mutex_);
+        if (output_resampler_ == nullptr || decoder_sample_rate_ != sample_rate) {
+            if (output_resampler_ != nullptr) {
+                esp_ae_rate_cvt_close(output_resampler_);
+                output_resampler_ = nullptr;
+            }
+            esp_ae_rate_cvt_cfg_t cfg =
+                RATE_CVT_CFG(sample_rate, (esp_audio_sample_rate_t)codec_->output_sample_rate(), 1);
+            auto ret = esp_ae_rate_cvt_open(&cfg, &output_resampler_);
+            if (ret == ESP_AUDIO_ERR_OK) {
+                decoder_sample_rate_ = sample_rate;
+            } else {
+                ESP_LOGE(TAG, "Failed to create output resampler: %d", ret);
+                output_resampler_ = nullptr;
+            }
+        }
+        if (output_resampler_ != nullptr) {
+            uint32_t target_size = 0;
+            esp_ae_rate_cvt_get_max_out_sample_num(output_resampler_, pcm.size(), &target_size);
+            output_pcm.resize(target_size);
+            uint32_t actual_output = target_size;
+            esp_ae_rate_cvt_process(output_resampler_, (esp_ae_sample_t)pcm.data(), pcm.size(),
+                                    (esp_ae_sample_t)output_pcm.data(), &actual_output);
+            output_pcm.resize(actual_output);
+        } else {
+            output_pcm = std::move(pcm);
+        }
+    } else {
+        output_pcm = std::move(pcm);
+    }
+
+    AudioTask task;
+    task.type = kAudioTaskTypeDecodeToPlaybackQueue;
+    task.pcm = std::move(output_pcm);
+
+    std::unique_lock<std::mutex> lock(audio_queue_mutex_);
+    const uint32_t generation = playback_generation_;
+    if (audio_playback_queue_.size() >= MAX_PLAYBACK_TASKS_IN_QUEUE) {
+        if (wait) {
+            audio_queue_cv_.wait(lock, [this, generation]() {
+                return service_stopped_.load() || generation != playback_generation_ ||
+                       audio_playback_queue_.size() < MAX_PLAYBACK_TASKS_IN_QUEUE;
+            });
+        } else {
+            return false;
+        }
+    }
+
+    if (service_stopped_.load() || generation != playback_generation_) {
+        return false;
+    }
+
+    playback_drained_notified_ = false;
+    audio_playback_queue_.push_back(std::move(task));
+    audio_queue_cv_.notify_all();
+    return true;
+}
+
 std::unique_ptr<AudioStreamPacket> AudioService::PopPacketFromSendQueue() {
     std::lock_guard<std::mutex> lock(audio_queue_mutex_);
     if (audio_send_queue_.empty()) {

@@ -1,0 +1,66 @@
+name: Build Standalone Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: 'Board directory (e.g. xmini/c3, bread-compact-wifi-lcd, jiuchuan-s3)'
+        required: true
+        default: 'xmini/c3'
+      variant:
+        description: 'Variant name (e.g. xmini-c3, bread-compact-wifi-lcd, jiuchuan-s3)'
+        required: true
+        default: 'xmini-c3'
+      language:
+        description: 'Firmware Language Locale (e.g. th-TH for Thai, en-US for English)'
+        required: true
+        default: 'th-TH'
+      enable_langmind:
+        description: 'Enable LangMind direct HTTPS protocol'
+        required: true
+        type: boolean
+        default: true
+      langmind_agent_id:
+        description: 'Default LangMind Agent UUID'
+        required: false
+        default: 'e2fe0242-6e05-4460-b846-1fab2f8df2e9'
+      langmind_base_url:
+        description: 'LangMind Platform Base URL'
+        required: false
+        default: 'https://langmind.in.th'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ inputs.variant }} (${{ inputs.language }})
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v6.1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Configure and build firmware
+        shell: bash
+        env:
+          BOARD: ${{ inputs.board }}
+          VARIANT: ${{ inputs.variant }}
+          LANG: ${{ inputs.language }}
+          ENABLE_LM: ${{ inputs.enable_langmind }}
+          LM_AGENT: ${{ inputs.langmind_agent_id }}
+          LM_BASE: ${{ inputs.langmind_base_url }}
+        run: |
+          source "$IDF_PATH/export.sh"
+          if [ "$ENABLE_LM" = "true" ]; then
+            printf "\nCONFIG_LANGMIND_ENABLED=y\nCONFIG_LANGMIND_BASE_URL=\"%s\"\nCONFIG_LANGMIND_AGENT_ID=\"%s\"\n" "$LM_BASE" "$LM_AGENT" >> sdkconfig.defaults
+          fi
+          python scripts/build.py "$BOARD" --name "$VARIANT" --language "$LANG"
+
+      - name: Upload merged binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-${{ inputs.variant }}-${{ inputs.language }}-${{ github.sha }}
+          path: build/merged-binary.bin
+          if-no-files-found: error

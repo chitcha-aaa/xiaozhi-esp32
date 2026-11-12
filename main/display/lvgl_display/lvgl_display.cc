@@ -17,6 +17,10 @@
 
 #define TAG "Display"
 
+LV_FONT_DECLARE(font_thai_14);
+LV_FONT_DECLARE(font_thai_16);
+LV_FONT_DECLARE(font_thai_20);
+
 LvglDisplay::LvglDisplay() {
     dynamic_glyph_cache_ = std::make_unique<DynamicGlyphCache>();
     // Notification timer
@@ -56,6 +60,14 @@ bool LvglDisplay::SetTextFont(std::shared_ptr<LvglFont> text_font) {
     if (light_theme == nullptr && dark_theme == nullptr) {
         return false;
     }
+
+#if defined(TEXT_FONT_SIZE) && TEXT_FONT_SIZE >= 20
+    text_font->SetFallback(&font_thai_20);
+#elif defined(TEXT_FONT_SIZE) && TEXT_FONT_SIZE >= 16
+    text_font->SetFallback(&font_thai_16);
+#else
+    text_font->SetFallback(&font_thai_14);
+#endif
 
     // LVGL styles keep raw lv_font_t pointers. Keep the previous font owners alive until the
     // current theme has rebound every style to the new font.

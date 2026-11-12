@@ -1245,4 +1245,33 @@ menu "TAIJIPAI_S3_CONFIG"
         启动双声道
 endmenu
 
+menu "LangMind Integration"
+    config LANGMIND_ENABLED
+        bool "Enable LangMind direct HTTPS integration"
+        default n
+        help
+            Enables direct voice conversation with LangMind agent via HTTPS without server middleman.
+
+    config LANGMIND_BASE_URL
+        string "LangMind Base URL"
+        default "https://langmind.in.th"
+        depends on LANGMIND_ENABLED
+        help
+            Base URL for LangMind platform APIs.
+
+    config LANGMIND_AGENT_ID
+        string "LangMind Agent ID"
+        default "e2fe0242-6e05-4460-b846-1fab2f8df2e9"
+        depends on LANGMIND_ENABLED
+        help
+            Default Agent UUID on LangMind platform.
+
+    config LANGMIND_API_KEY
+        string "LangMind API Key (Optional default if not in NVS)"
+        default ""
+        depends on LANGMIND_ENABLED
+        help
+            Default PAT or API key for LangMind. If empty, reads from NVS namespace 'langmind', key 'api_key'.
+endmenu
+
 endmenu

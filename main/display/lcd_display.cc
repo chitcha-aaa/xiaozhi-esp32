@@ -24,9 +24,19 @@ LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 LV_FONT_DECLARE(BUILTIN_ICON_FONT);
 LV_FONT_DECLARE(font_material_symbols_30_4);
 LV_FONT_DECLARE(font_noto_emoji_30_4);
+LV_FONT_DECLARE(font_thai_14);
+LV_FONT_DECLARE(font_thai_16);
+LV_FONT_DECLARE(font_thai_20);
 
 void LcdDisplay::InitializeLcdThemes() {
     auto text_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_TEXT_FONT);
+#if defined(TEXT_FONT_SIZE) && TEXT_FONT_SIZE >= 20
+    text_font->SetFallback(&font_thai_20);
+#elif defined(TEXT_FONT_SIZE) && TEXT_FONT_SIZE >= 16
+    text_font->SetFallback(&font_thai_16);
+#else
+    text_font->SetFallback(&font_thai_14);
+#endif
     auto icon_font = std::make_shared<LvglBuiltInFont>(&BUILTIN_ICON_FONT);
     auto large_icon_font = std::make_shared<LvglBuiltInFont>(&font_material_symbols_30_4);
     auto emoji_font = std::make_shared<LvglBuiltInFont>(&font_noto_emoji_30_4);

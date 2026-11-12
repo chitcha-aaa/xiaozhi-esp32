@@ -203,6 +203,25 @@ NetworkResult<> Ota::CheckVersion() {
         ESP_LOGI(TAG, "No websocket section found!");
     }
 
+    has_langmind_config_ = false;
+    cJSON *langmind = cJSON_GetObjectItem(root, "langmind");
+    if (cJSON_IsObject(langmind)) {
+        Settings settings("langmind", true);
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, langmind) {
+            if (cJSON_IsString(item)) {
+                if (settings.GetString(item->string) != item->valuestring) {
+                    settings.SetString(item->string, item->valuestring);
+                }
+            } else if (cJSON_IsNumber(item)) {
+                if (settings.GetInt(item->string) != item->valueint) {
+                    settings.SetInt(item->string, item->valueint);
+                }
+            }
+        }
+        has_langmind_config_ = true;
+    }
+
     has_server_time_ = false;
     cJSON *server_time = cJSON_GetObjectItem(root, "server_time");
     if (cJSON_IsObject(server_time)) {
