@@ -642,13 +642,12 @@ bool AudioService::PushPcmToPlaybackQueue(std::vector<int16_t>&& pcm, int sample
                 output_resampler_ = nullptr;
             }
             esp_ae_rate_cvt_cfg_t cfg =
-                RATE_CVT_CFG(sample_rate, (esp_audio_sample_rate_t)codec_->output_sample_rate(), 1);
+                RATE_CVT_CFG(sample_rate, codec_->output_sample_rate(), ESP_AUDIO_MONO);
             auto ret = esp_ae_rate_cvt_open(&cfg, &output_resampler_);
-            if (ret == ESP_AUDIO_ERR_OK) {
+            if (output_resampler_ != nullptr) {
                 decoder_sample_rate_ = sample_rate;
             } else {
                 ESP_LOGE(TAG, "Failed to create output resampler: %d", ret);
-                output_resampler_ = nullptr;
             }
         }
         if (output_resampler_ != nullptr) {
